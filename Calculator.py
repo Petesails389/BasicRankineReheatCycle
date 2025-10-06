@@ -29,7 +29,8 @@ class Value(ttk.Frame):
 
     # tkinter setup
     ttk.Label(self, text=label).grid(row=0,column=0)
-    self.txt = ttk.Entry(self,textvariable = self.valueText)
+    self.txt = Entry(self,textvariable = self.valueText)
+    self.txt.config(highlightthickness=1,highlightbackground = "gray73", highlightcolor= "gray73")
     if units != "":
       ttk.OptionMenu(self, self.units, *self.conversionTexts).grid(row=0,column=1)
     self.txt.grid(row=1,column=0,columnspan=2)
@@ -52,7 +53,7 @@ class Value(ttk.Frame):
     if value:
       self.txt.config(state="disabled")
     else:
-      self.txt.config(state="enabled")
+      self.txt.config(state="normal")
       if not self.selected.get():
         self.SetValue("")
   
@@ -112,6 +113,13 @@ class Value(ttk.Frame):
       self.value = 0
       self.valueText.set("")
     self.trace = self.valueText.trace_add('write', self.Write)
+    
+  def SetError(self, value):
+    if value:
+      print("test")
+      self.txt.config(highlightbackground = "red", highlightcolor= "red")
+    else:
+      self.txt.config(highlightbackground = "gray73", highlightcolor= "gray73")
 
 class Cycle(ttk.Frame):
   def __init__(self, parent):
@@ -184,7 +192,9 @@ class Cycle(ttk.Frame):
         x = self.states[state][i]
         try:
           x.SetValue(CP.PropsSI(self.cpt[i], self.cpt[knowns[0][0]], knowns[0][1], self.cpt[knowns[1][0]], knowns[1][1], 'water'))
+          x.SetError(False)
         except ValueError:
+          x.SetError(True)
           x.SetValue()
 
     # check links with other states
