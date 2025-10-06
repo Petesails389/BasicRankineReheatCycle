@@ -5,14 +5,19 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
                                                NavigationToolbar2Tk)
 from tkinter import *
 from tkinter import ttk
+import math
+
+round_to_n = lambda x, n: x if x == 0 else round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
 
 class Value(ttk.Frame):
-  def __init__(self, parent, label, onChange):
+  def __init__(self, parent, label, onChange, conversion=(0,1)):
     Frame.__init__(self, parent, pady=5, padx=5)
 
     # variables
-    self.value = StringVar(self, value="")
-    self.trace = self.value.trace_add('write', self.Write)
+    self.conversion = conversion
+    self.value = NONE
+    self.valueText = StringVar(self, value="")
+    self.trace = self.valueText.trace_add('write', self.Write)
     self.container = ttk.Frame(parent)
     self.selected = BooleanVar(self, value=False)
     self.copied = BooleanVar(self, value=False)
@@ -27,13 +32,13 @@ class Value(ttk.Frame):
     self.check.grid(row=0,column=1)
     self.checkCopied = ttk.Checkbutton(self,variable=self.copied, onvalue=True, offvalue=False, state="disabled")
     self.checkCopied.grid(row=0,column=2)
-    self.txt = ttk.Entry(self,textvariable = self.value)
+    self.txt = ttk.Entry(self,textvariable = self.valueText)
     self.txt.grid(row=1,column=0,columnspan=3)
   
   def Write(self,a,b,c):
     if self.driven: 
       return
-    self.selected.set(len(self.value.get()) > 0)
+    self.selected.set(len(self.valueText.get()) > 0)
     self.OnChange()
   
   def SetSelected(self, value):
@@ -51,16 +56,23 @@ class Value(ttk.Frame):
         self.SetValue("")
   
   def GetValue(self):
+    if self.driven:
+      return self.value
+    
     try:
-      return float(self.value.get())
+      return float(self.valueText.get())
     except ValueError:
       self.SetValue("0")
       return 0
   
   def SetValue(self, value):
-    self.value.trace_remove('write', self.trace)
-    self.value.set(value)
-    self.trace = self.value.trace_add('write', self.Write)
+    self.valueText.trace_remove('write', self.trace)
+    self.value = value
+    try:
+      self.valueText.set(round_to_n(float(value),4))
+    except ValueError:
+      self.valueText.set("")
+    self.trace = self.valueText.trace_add('write', self.Write)
 
 class Cycle(ttk.Frame):
   def __init__(self, parent):
