@@ -116,7 +116,6 @@ class Value(ttk.Frame):
     
   def SetError(self, value):
     if value:
-      print("test")
       self.txt.config(highlightbackground = "red", highlightcolor= "red")
     else:
       self.txt.config(highlightbackground = "gray73", highlightcolor= "gray73")
