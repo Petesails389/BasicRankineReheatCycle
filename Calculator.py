@@ -7,39 +7,42 @@ from tkinter import *
 from tkinter import ttk
 import math
 
-round_to_n = lambda x, n: x if x == 0 else round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
+round_to_n = lambda x, n: int(0) if x == 0 else round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
 
 class Value(ttk.Frame):
-  def __init__(self, parent, label, onChange, conversion=(0,1)):
+  def __init__(self, parent, label, units, onChange):
     Frame.__init__(self, parent, pady=5, padx=5)
 
     # variables
-    self.conversion = conversion
+    if units != "K" and units != "C" and units != "F":
+      self.conversionTexts = [f"{units}", f"{units}", f"K{units}",f"M{units}",f"G{units}"]
+    else:
+      self.conversionTexts = [f"{units}","K","C","F"]
+    self.units = StringVar(self, value=f"{units}")
     self.value = NONE
     self.valueText = StringVar(self, value="")
-    self.trace = self.valueText.trace_add('write', self.Write)
     self.container = ttk.Frame(parent)
     self.selected = BooleanVar(self, value=False)
     self.copied = BooleanVar(self, value=False)
     self.driven = False
     self.OnChange = onChange
-    self.label = label
 
     # tkinter setup
-    self.lbl = ttk.Label(self, text=label)
-    self.lbl.grid(row=0,column=0)
-    self.check = ttk.Checkbutton(self,variable=self.selected, onvalue=True, offvalue=False, command=onChange)
-    self.check.grid(row=0,column=1)
-    self.checkCopied = ttk.Checkbutton(self,variable=self.copied, onvalue=True, offvalue=False, state="disabled")
-    self.checkCopied.grid(row=0,column=2)
+    ttk.Label(self, text=label).grid(row=0,column=0)
     self.txt = ttk.Entry(self,textvariable = self.valueText)
-    self.txt.grid(row=1,column=0,columnspan=3)
+    if units != "":
+      ttk.OptionMenu(self, self.units, *self.conversionTexts).grid(row=0,column=1)
+    self.txt.grid(row=1,column=0,columnspan=2)
+    
+    #add traces
+    self.units.trace_add('write', self.Write)
+    self.trace = self.valueText.trace_add('write', self.Write)
   
   def Write(self,a,b,c):
-    if self.driven: 
-      return
-    self.selected.set(len(self.valueText.get()) > 0)
+    if not self.driven:
+      self.selected.set(len(self.valueText.get()) > 0)
     self.OnChange()
+
   
   def SetSelected(self, value):
     self.selected = value
@@ -48,29 +51,65 @@ class Value(ttk.Frame):
     self.driven = value
     if value:
       self.txt.config(state="disabled")
-      self.check.config(state="disabled")
     else:
       self.txt.config(state="enabled")
-      self.check.config(state="enabled")
       if not self.selected.get():
         self.SetValue("")
+  
+  def ConvertToSI(self,value):
+    match self.units.get():
+      case "C":
+        return value + 273
+      case "F":
+        return (value - 32)*(5/9)+273
+      case "":
+        return value
+      case "K":
+        return value
+    match self.units.get()[0]:
+      case "K":
+        return value*1e3
+      case "M":
+        return value*1e6
+      case "G":
+        return value*1e9
+    return value
+  
+  def ConvertFromSI(self,value):
+    match self.units.get():
+      case "C":
+        return value - 273
+      case "F":
+        return (value - 273)/(5/9)+32
+      case "":
+        return value
+      case "K":
+        return value
+    match self.units.get()[0]:
+      case "K":
+        return value/1e3
+      case "M":
+        return value/1e6
+      case "G":
+        return value/1e9
+    return value
   
   def GetValue(self):
     if self.driven:
       return self.value
-    
     try:
-      return float(self.valueText.get())
+      return self.ConvertToSI(float(self.valueText.get()))
     except ValueError:
       self.SetValue("0")
       return 0
   
-  def SetValue(self, value):
+  def SetValue(self, value=NONE):
     self.valueText.trace_remove('write', self.trace)
-    self.value = value
     try:
-      self.valueText.set(round_to_n(float(value),4))
+      self.value = value
+      self.valueText.set(round_to_n(self.ConvertFromSI(float(value)),4))
     except ValueError:
+      self.value = 0
       self.valueText.set("")
     self.trace = self.valueText.trace_add('write', self.Write)
 
@@ -80,16 +119,16 @@ class Cycle(ttk.Frame):
 
     self.states = []
     for i in range(0,6):
-      s = Value(self,f"s{i+1}",lambda i=i :self.OnChange(i,0))
-      s.grid(row=i,column=0)
-      h = Value(self,f"h{i+1}",lambda i=i :self.OnChange(i,1))
-      h.grid(row=i,column=1)
-      t = Value(self,f"t{i+1}",lambda i=i :self.OnChange(i,2))
-      t.grid(row=i,column=2)
-      p = Value(self,f"p{i+1}",lambda i=i :self.OnChange(i,3))
-      p.grid(row=i,column=3)
-      x = Value(self,f"X{i+1}",lambda i=i :self.OnChange(i,4))
-      x.grid(row=i,column=4)
+      s = Value(self,f"s{i+1}","S",lambda i=i :self.OnChange(i,0))
+      s.grid(row=i,column=0,sticky="S")
+      h = Value(self,f"h{i+1}","J/KG",lambda i=i :self.OnChange(i,1))
+      h.grid(row=i,column=1,sticky="S")
+      t = Value(self,f"t{i+1}","C",lambda i=i :self.OnChange(i,2))
+      t.grid(row=i,column=2,sticky="S")
+      p = Value(self,f"p{i+1}","Pa",lambda i=i :self.OnChange(i,3))
+      p.grid(row=i,column=3,sticky="S")
+      x = Value(self,f"X{i+1}","",lambda i=i :self.OnChange(i,4))
+      x.grid(row=i,column=4,sticky="S")
       self.states.append([s,h,t,p,x])
     
     # vertical links
@@ -146,14 +185,12 @@ class Cycle(ttk.Frame):
         try:
           x.SetValue(CP.PropsSI(self.cpt[i], self.cpt[knowns[0][0]], knowns[0][1], self.cpt[knowns[1][0]], knowns[1][1], 'water'))
         except ValueError:
-          x.SetDriven(False)
-          x.SetValue(0)
+          x.SetValue()
 
     # check links with other states
     for i in range(0,5):
       x = self.states[state][i]
       self.Link(state,i)
-      #x.SetDriven((not x.selected.get() and selectedInState == 2) or x.copied.get())
     
     #check if it is now solvable or not
     if self.IsSolvable():
